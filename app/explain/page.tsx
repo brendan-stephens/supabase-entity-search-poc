@@ -20,6 +20,63 @@ export default function ExplainPage() {
           </p>
         </Section>
 
+        {/* Cost comparison */}
+        <Section title="Cost comparison (421M entities, production scale)">
+          <p>
+            Elastic bundles compute, storage, IOPS, and throughput into a single consumption line. Supabase bills each separately — the table below breaks it out so the comparison is apples-to-apples.
+          </p>
+
+          <div className="mt-4 rounded-lg border border-zinc-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="px-4 py-2.5 text-left text-xs text-zinc-500 font-medium">Line item</th>
+                  <th className="px-4 py-2.5 text-right text-xs text-zinc-500 font-medium">Elastic Serverless</th>
+                  <th className="px-4 py-2.5 text-right text-xs text-[#3ECF8E] font-medium">Supabase 8XL</th>
+                  <th className="px-4 py-2.5 text-right text-xs text-zinc-400 font-medium">Supabase 4XL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Compute', 'bundled', '$1,870/mo  ·  32 vCPU / 128 GB', '$960/mo  ·  16 vCPU / 64 GB'],
+                  ['Disk  (~580 GB)', 'bundled', '$74/mo', '$74/mo'],
+                  ['IOPS', 'bundled', '3,000 included', '3,000 included'],
+                  ['Throughput', 'bundled', '125 MB/s included', '125 MB/s included'],
+                ].map(([label, elastic, xl8, xl4]) => (
+                  <tr key={label} className="border-t border-zinc-800/60">
+                    <td className="px-4 py-2.5 text-xs text-zinc-400 font-medium">{label}</td>
+                    <td className="px-4 py-2.5 text-xs text-zinc-500 text-right">{elastic}</td>
+                    <td className="px-4 py-2.5 text-xs text-zinc-300 text-right">{xl8}</td>
+                    <td className="px-4 py-2.5 text-xs text-zinc-400 text-right">{xl4}</td>
+                  </tr>
+                ))}
+                <tr className="border-t border-zinc-700 bg-zinc-900/60">
+                  <td className="px-4 py-3 text-sm font-semibold text-white">Total / month</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-zinc-300 text-right">~$2,000</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-[#3ECF8E] text-right">~$1,944  <span className="text-xs font-normal text-zinc-500">−3%</span></td>
+                  <td className="px-4 py-3 text-sm font-semibold text-zinc-300 text-right">~$1,034  <span className="text-xs font-normal text-zinc-500">−48%</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <CostNote label="8XL vs 4XL — which do you need?">
+              The GIN index at full scale is ~430 GB. An 8XL (128 GB RAM) keeps ~30–50 GB of the hottest index pages in <code>shared_buffers</code>. For a real-world name search workload, popular companies are searched far more than obscure ones, so hot pages stay warm and cache hit rates are high. A 4XL (64 GB) works at roughly half the compute cost — with more cache misses on tail queries, but still sub-200 ms p50 for warm pages.
+            </CostNote>
+            <CostNote label="IOPS and throughput — baseline is enough">
+              3,000 IOPS and 125 MB/s are included with every instance at no extra charge. At steady state with a warm cache, the benchmark shows near-100% buffer hit rates — actual disk reads drop to near zero. IOPS matter during cold starts (fixed by pg_prewarm) and the initial seed load (one-time write burst). Provisioned IOPS at $0.024/IOPS/mo above 3,000 are rarely needed for this read-heavy workload.
+            </CostNote>
+            <CostNote label="Scale-out: read replicas over vertical scaling">
+              Rather than jumping to a 16XL ($3,730/mo), add a read replica at the same instance size. Two 8XL nodes costs ~$3,888/mo but doubles read throughput, doubles effective cache size, and adds availability — roughly the same price as a single 16XL with a cleaner horizontal growth path.
+            </CostNote>
+          </div>
+
+          <p className="mt-4 text-xs text-zinc-600">
+            Pricing from supabase.com/pricing, October 2026. Disk cost assumes General Purpose storage. Elastic figure is the customer&apos;s actual bill (all-in).
+          </p>
+        </Section>
+
         {/* The dataset */}
         <Section title="The dataset">
           <p>
@@ -110,7 +167,7 @@ export default function ExplainPage() {
         <Section title="Caveats and honest notes">
           <ul className="space-y-1.5 text-sm text-zinc-400">
             <Li>The demo data is <strong className="text-zinc-200">synthetic</strong>. Real company names are more varied — common words like &ldquo;Global Tech&rdquo; appear across many entities in this dataset, which inflates the GIN candidate set and slightly overstates query time for selective real-world queries.</Li>
-            <Li>The demo runs at <strong className="text-zinc-200">1/421 scale</strong>. At full scale (421M entities, ~1.5B name rows, ~430GB GIN index), a larger Supabase instance is required — an 8XL (32 cores, 64GB RAM) keeps the working set in <code className="text-zinc-300">shared_buffers</code> and delivers sub-50ms p95 for most query types.</Li>
+            <Li>The demo runs at <strong className="text-zinc-200">1/421 scale</strong>. At full scale (421M entities, ~1.5B name rows, ~430GB GIN index), a larger Supabase instance is required — an 8XL (32 cores, 128 GB RAM) keeps the hot working set in <code className="text-zinc-300">shared_buffers</code> and delivers sub-50 ms p95 for the most common query patterns.</Li>
             <Li>Benchmark latency includes <strong className="text-zinc-200">network RTT</strong> from the Next.js server to Supabase us-east-1. In production (app server co-located with the database) this is negligible.</Li>
           </ul>
         </Section>
@@ -134,6 +191,15 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
       <p className="text-xs font-mono text-[#3ECF8E] mb-1.5">{label}</p>
       <p className="text-sm text-zinc-400">{children}</p>
+    </div>
+  )
+}
+
+function CostNote({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3">
+      <p className="text-xs font-medium text-zinc-300 mb-1">{label}</p>
+      <p className="text-xs text-zinc-500 leading-relaxed">{children}</p>
     </div>
   )
 }
