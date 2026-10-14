@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Supabase CLI temp state (contains project ref / org IDs)
+supabase/.temp/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Misc
+npm-debug.log*
