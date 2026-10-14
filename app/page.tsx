@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import type { SearchResult, SearchResponse } from '@/lib/supabase'
 
 const COUNTRIES = [
@@ -17,15 +17,6 @@ const COUNTRIES = [
   { code: 'BR', label: '🇧🇷 Brazil' },
   { code: 'SG', label: '🇸🇬 Singapore' },
   { code: 'HK', label: '🇭🇰 Hong Kong' },
-]
-
-const SUGGESTIONS = [
-  'Global Technologies',
-  'Internaional Holdings',  // typo — tests fuzzy
-  '国际科技',
-  'Premier Cap',            // prefix
-  'Advansed Solutions',     // typo
-  '技术集团',
 ]
 
 function ScoreBar({ score }: { score: number }) {
@@ -62,7 +53,15 @@ export default function SearchPage() {
   const [dbMs, setDbMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [empty, setEmpty] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const debounce = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    fetch('/api/suggestions')
+      .then(r => r.json())
+      .then(d => setSuggestions(d.suggestions ?? []))
+      .catch(() => {})
+  }, [])
 
   const search = useCallback(async (q: string, c: string) => {
     if (q.trim().length < 2) {
@@ -149,11 +148,11 @@ export default function SearchPage() {
       </div>
 
       {/* Suggestions */}
-      {!query && (
+      {!query && suggestions.length > 0 && (
         <div className="mb-8">
           <p className="text-xs text-zinc-600 mb-2">Try:</p>
           <div className="flex flex-wrap gap-2">
-            {SUGGESTIONS.map(s => (
+            {suggestions.map(s => (
               <button
                 key={s}
                 onClick={() => handleInput(s)}
