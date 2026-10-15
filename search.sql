@@ -96,11 +96,12 @@ END;
 $$;
 
 -- ── Prefix / starts-with search (fast B-tree path, no trigrams needed) ────────
--- Useful for autocomplete — bypasses GIN entirely.
+-- Caps inner scan at p_limit * 10 rows so DISTINCT ON never sorts the full
+-- matching set (a short prefix on a large corpus can match thousands of rows).
 CREATE OR REPLACE FUNCTION search_entities_prefix(
-    p_prefix   text,
-    p_country  text    DEFAULT NULL,
-    p_limit    integer DEFAULT 20
+    p_prefix  text,
+    p_country text    DEFAULT NULL,
+    p_limit   int     DEFAULT 20
 )
 RETURNS TABLE (
     entity_id    bigint,
@@ -108,16 +109,21 @@ RETURNS TABLE (
     country      text,
     matched_name text
 )
-LANGUAGE sql STABLE PARALLEL SAFE
-AS $$
+LANGUAGE sql STABLE PARALLEL SAFE AS $$
+WITH candidates AS (
+    SELECT entity_id, name, name_lower
+    FROM entity_names
+    WHERE name_lower LIKE lower(p_prefix) || '%'
+    ORDER BY name_lower
+    LIMIT (p_limit * 10)
+)
 SELECT DISTINCT ON (e.id)
     e.id,
     e.display_name,
     e.country,
-    en.name
-FROM entity_names en
-JOIN entities e ON e.id = en.entity_id
-WHERE en.name_lower LIKE lower(p_prefix) || '%'
-ORDER BY e.id, en.name_lower
+    c.name
+FROM candidates c
+JOIN entities e ON e.id = c.entity_id
+ORDER BY e.id, c.name_lower
 LIMIT p_limit;
 $$;

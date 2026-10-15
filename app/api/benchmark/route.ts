@@ -238,7 +238,7 @@ export async function POST() {
             .then(s => send({ type: 'suite', data: s })),
 
           runSuite(pool, 'Prefix autocomplete',
-            () => [pick(banks.exact).slice(0, 4), null], PREFIX_SQL)
+            () => [pick(banks.exact).slice(0, 5), null], PREFIX_SQL)
             .then(s => send({ type: 'suite', data: s })),
         ])
 
