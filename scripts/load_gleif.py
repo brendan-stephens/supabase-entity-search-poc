@@ -26,7 +26,7 @@ import os
 import sys
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 try:
     import psycopg2
@@ -168,12 +168,15 @@ def load(dsn: str, workers: int = 8, limit: int | None = None):
         page_iter = iter(range(2, total_pages + 1))
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            # Seed the pool with the first wave of futures
+            # Seed with the first wave of futures
             in_flight = {pool.submit(fetch_page, p): p
                          for p in list(page_iter)[:workers * 4]}
 
+            # Use wait(FIRST_COMPLETED) so new futures added to in_flight
+            # are seen on the next iteration — as_completed snapshots at call time.
             while in_flight and not hit_limit:
-                for future in as_completed(in_flight, timeout=120):
+                done, _ = wait(in_flight, timeout=120, return_when=FIRST_COMPLETED)
+                for future in done:
                     pnum = in_flight.pop(future)
                     try:
                         hit_limit = absorb(future.result())
@@ -188,7 +191,7 @@ def load(dsn: str, workers: int = 8, limit: int | None = None):
                         pool.shutdown(wait=False, cancel_futures=True)
                         break
 
-                    # Refill the pool
+                    # Keep the pool full
                     try:
                         np = next(page_iter)
                         in_flight[pool.submit(fetch_page, np)] = np
