@@ -84,12 +84,12 @@ export default function ExplainPage() {
           </p>
           <ul className="mt-2 space-y-1.5 text-sm text-zinc-400">
             <Li><strong className="text-zinc-200">Multiple name variants</strong> — a few per company on average, occasionally thousands (abbreviations, historical names, transliterations). In Elasticsearch these are multi-valued fields on a single document; here they are rows in a separate <code className="text-zinc-300">entity_names</code> table.</Li>
-            <Li><strong className="text-zinc-200">~25% non-Latin names</strong> — primarily Chinese characters. <code className="text-zinc-300">pg_trgm</code> handles Unicode trigrams natively, so no special configuration is needed.</Li>
+            <Li><strong className="text-zinc-200">Non-Latin names</strong> — Chinese, Arabic, Cyrillic, and other scripts. <code className="text-zinc-300">pg_trgm</code> handles Unicode trigrams natively, so no special configuration is needed.</Li>
             <Li><strong className="text-zinc-200">Country field</strong> — used as a ranking boost, not a filter. A search for &ldquo;Acme&rdquo; with country=US returns the same result set as without it, just re-ranked.</Li>
             <Li><strong className="text-zinc-200">Display name</strong> — stored but not indexed, returned in results.</Li>
           </ul>
           <p className="mt-3">
-            The demo dataset is synthetic and generated at 1/421 scale (~1M entities, ~2.1M name variants). The Postgres schema and search function are identical to what would run at full scale.
+            The demo dataset is sourced from the <strong className="text-zinc-200">GLEIF (Global Legal Entity Identifier Foundation)</strong> registry — real legal entity names from ~200 countries, loaded via the GLEIF public API. Near-100% name uniqueness (as expected from a real registry) means GIN candidate sets are tight and query times reflect what the production workload would actually see.
           </p>
         </Section>
 
@@ -152,7 +152,7 @@ export default function ExplainPage() {
               ['Search index', 'pg_trgm GIN (built-in extension)'],
               ['Web app', 'Next.js 14, TypeScript, Tailwind'],
               ['Benchmark client', 'node-postgres (pg), direct connection'],
-              ['Data generator', 'Python / psycopg2'],
+              ['Data source', 'GLEIF LEI registry (~3.2M entities)'],
               ['Region', 'us-east-1 (matches Elastic cluster region)'],
             ].map(([k, v]) => (
               <div key={k} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
@@ -166,8 +166,8 @@ export default function ExplainPage() {
         {/* Caveats */}
         <Section title="Caveats and honest notes">
           <ul className="space-y-1.5 text-sm text-zinc-400">
-            <Li>The demo data is <strong className="text-zinc-200">synthetic</strong>. Real company names are more varied — common words like &ldquo;Global Tech&rdquo; appear across many entities in this dataset, which inflates the GIN candidate set and slightly overstates query time for selective real-world queries.</Li>
-            <Li>The demo runs at <strong className="text-zinc-200">1/421 scale</strong>. At full scale (421M entities, ~1.5B name rows, ~430GB GIN index), a larger Supabase instance is required — an 8XL (32 cores, 128 GB RAM) keeps the hot working set in <code className="text-zinc-300">shared_buffers</code> and delivers sub-50 ms p95 for the most common query patterns.</Li>
+            <Li>The demo loads <strong className="text-zinc-200">GLEIF data (~3.2M active LEI records)</strong>, not the full production 421M-entity corpus. GLEIF covers registered legal entities with LEIs — a high-quality subset. The production index also includes non-LEI entities, unstructured name variants, and historical records not present here.</Li>
+            <Li>The demo runs at <strong className="text-zinc-200">sub-scale</strong>. At full scale (421M entities, ~1.5B name rows, ~430 GB GIN index), a larger Supabase instance is required — an 8XL (32 cores, 128 GB RAM) keeps the hot working set in <code className="text-zinc-300">shared_buffers</code> and delivers sub-50 ms p95 for the most common query patterns.</Li>
             <Li>Benchmark latency includes <strong className="text-zinc-200">network RTT</strong> from the Next.js server to Supabase us-east-1. In production (app server co-located with the database) this is negligible.</Li>
           </ul>
         </Section>
