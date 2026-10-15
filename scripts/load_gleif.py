@@ -21,6 +21,7 @@ Usage:
 """
 
 import argparse
+import itertools
 import json
 import os
 import sys
@@ -168,9 +169,10 @@ def load(dsn: str, workers: int = 8, limit: int | None = None):
         page_iter = iter(range(2, total_pages + 1))
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            # Seed with the first wave of futures
+            # Seed with the first wave — islice preserves the iterator position
+            # so subsequent next(page_iter) calls continue from where we left off.
             in_flight = {pool.submit(fetch_page, p): p
-                         for p in list(page_iter)[:workers * 4]}
+                         for p in itertools.islice(page_iter, workers * 4)}
 
             # Use wait(FIRST_COMPLETED) so new futures added to in_flight
             # are seen on the next iteration — as_completed snapshots at call time.
